@@ -9,11 +9,15 @@ import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.hardware.Sensor;
+import android.hardware.SensorManager;
 import android.os.BatteryManager;
 import android.os.Build.VERSION;
 import android.os.Build.VERSION_CODES;
 import android.os.Bundle;
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
+
 import io.flutter.embedding.android.FlutterActivity;
 import io.flutter.embedding.engine.FlutterEngine;
 import io.flutter.plugin.common.EventChannel;
@@ -23,15 +27,16 @@ import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.MethodCall;
-import io.flutter.plugins.GeneratedPluginRegistrant;
 
 public class MainActivity extends FlutterActivity {
   private static final String BATTERY_CHANNEL = "samples.flutter.io/battery";
   private static final String CHARGING_CHANNEL = "samples.flutter.io/charging";
+  private static final String BUTTON_CHANNEL = "samples.flutter.io/buttons";
+  private static final String ACCELEROMETER_CHANNEL = "samples.flutter.io/accelerometer";
 
   @Override
   public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
-    new EventChannel(flutterEngine.getDartExecutor(), CHARGING_CHANNEL).setStreamHandler(
+    /*new EventChannel(flutterEngine.getDartExecutor(), CHARGING_CHANNEL).setStreamHandler(
       new StreamHandler() {
         private BroadcastReceiver chargingStateChangeReceiver;
         @Override
@@ -47,6 +52,24 @@ public class MainActivity extends FlutterActivity {
           chargingStateChangeReceiver = null;
         }
       }
+    );*/
+
+    new EventChannel(flutterEngine.getDartExecutor(), ACCELEROMETER_CHANNEL).setStreamHandler(
+            new StreamHandler() {
+              private BroadcastReceiver accelerometerChangeReceiver;
+              @Override
+              public void onListen(Object arguments, EventSink events) {
+                accelerometerChangeReceiver = createAccelerometerChangeReceiver(events);
+                registerReceiver(
+                        accelerometerChangeReceiver, new IntentFilter(Intent.ACTION_DEFAULT));
+              }
+
+              @Override
+              public void onCancel(Object arguments) {
+                unregisterReceiver(accelerometerChangeReceiver);
+                  accelerometerChangeReceiver = null;
+              }
+            }
     );
 
     new MethodChannel(flutterEngine.getDartExecutor(), BATTERY_CHANNEL).setMethodCallHandler(
@@ -67,6 +90,10 @@ public class MainActivity extends FlutterActivity {
         }
       }
     );
+  }
+
+  private BroadcastReceiver createAccelerometerChangeReceiver(final EventSink events) {
+    return new MyBroadcastReceiver(events);
   }
 
   private BroadcastReceiver createChargingStateChangeReceiver(final EventSink events) {
